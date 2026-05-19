@@ -22,9 +22,9 @@ module "vpc" {
 module "nat_gateway" {
   source = "./modules/nat-gateway"
 
-  project_name        = var.project_name
-  public_subnet_id    = module.vpc.public_subnet_ids[0]
-  tags                = local.tags
+  project_name     = var.project_name
+  public_subnet_id = module.vpc.public_subnet_ids[0]
+  tags             = local.tags
 }
 
 # ------- Module: Route Tables -------
