@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Module VPC - Khoi tao VPC, Subnets, IGW va Default Security Group'
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block cho VPC
+  PublicSubnetCidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: CIDR block cho Public Subnet
+  PrivateSubnetCidr:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: CIDR block cho Private Subnet
+
+Resources:
+  # Tạo VPC
+  LabVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Lab-VPC
+
+  # Tạo Public Subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVPC
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: true # Tự động cấp Public IP cho EC2 trong subnet này
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: Lab-Public-Subnet
+
+  # Tạo Private Subnet
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVPC
+      CidrBlock: !Ref PrivateSubnetCidr
+      MapPublicIpOnLaunch: false
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: Lab-Private-Subnet
+
+  # Tạo Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Lab-IGW
+
+  # Gắn Internet Gateway vào VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref LabVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Tạo Default Security Group cho VPC
+  LabDefaultSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Default Security Group for Lab VPC - Allow internal traffic
+      VpcId: !Ref LabVPC
+      SecurityGroupIngress:
+        # Mặc định cho phép các tài nguyên trong cùng VPC giao tiếp với nhau
+        - IpProtocol: -1
+          CidrIp: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: Lab-Default-SG
+
+# Xuất các ID ra để các module/file khác gọi lại được
+Outputs:
+  VpcId:
+    Value: !Ref LabVPC
+    Export:
+      Name: LabVpcId
+  PublicSubnetId:
+    Value: !Ref PublicSubnet
+    Export:
+      Name: LabPublicSubnetId
+  PrivateSubnetId:
+    Value: !Ref PrivateSubnet
+    Export:
+      Name: LabPrivateSubnetId
+  DefaultSecurityGroupId:
+    Value: !Ref LabDefaultSecurityGroup
+    Export:
+      Name: LabDefaultSecurityGroupId
+  InternetGatewayId:
+    Value: !Ref InternetGateway
+    Export:
+      Name: LabInternetGatewayId

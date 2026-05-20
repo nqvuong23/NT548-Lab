@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Module Routing - Tao Route Tables va NAT Gateway'
+
+Resources:
+ 
+  # TẠO NAT GATEWAY
+  # Cấp phát một Elastic IP (IP tĩnh) cho NAT Gateway
+  NatEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # Tạo NAT Gateway
+  LabNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !ImportValue LabPublicSubnetId
+      Tags:
+        - Key: Name
+          Value: Lab-NAT-Gateway
+
+  # PUBLIC ROUTE TABLE
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !ImportValue LabVpcId
+      Tags:
+        - Key: Name
+          Value: Lab-Public-RT
+
+  # Định tuyến lưu lượng Internet (0.0.0.0/0) thông qua Internet Gateway
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !ImportValue LabInternetGatewayId
+
+  # Gắn Public Route Table vào Public Subnet
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !ImportValue LabPublicSubnetId
+      RouteTableId: !Ref PublicRouteTable
+
+  # PRIVATE ROUTE TABLE
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !ImportValue LabVpcId
+      Tags:
+        - Key: Name
+          Value: Lab-Private-RT
+
+  # Định tuyến lưu lượng Internet (0.0.0.0/0) thông qua NAT Gateway
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref LabNatGateway
+
+  # Gắn Private Route Table vào Private Subnet
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !ImportValue LabPrivateSubnetId
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  PublicRouteTableId:
+    Value: !Ref PublicRouteTable
+    Export:
+      Name: LabPublicRouteTableId
+  PrivateRouteTableId:
+    Value: !Ref PrivateRouteTable
+    Export:
+      Name: LabPrivateRouteTableId
