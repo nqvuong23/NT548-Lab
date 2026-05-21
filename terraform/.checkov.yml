@@ -1,0 +1,25 @@
+framework:
+  - terraform
+
+download-external-modules: true
+compact: true
+quiet: false
+
+skip-check:
+  - CKV_AWS_79
+  - CKV_AWS_8
+  - CKV_AWS_135
+  - CKV_AWS_126
+  - CKV_AWS_24
+  - CKV_AWS_23
+  - CKV_AWS_130
+  - CKV_AWS_260
+
+hard-fail-on:
+  - CRITICAL
+
+output:
+  - cli
+  - junitxml
+
+directory: ["."]

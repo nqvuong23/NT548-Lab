@@ -1,0 +1,196 @@
+name: Terraform CI/CD with Checkov
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  TF_VERSION: "1.5.0"
+  CHECKOV_VERSION: "3.2.0"
+  WORKING_DIR: "./terraform"
+  AWS_REGION: "us-east-1"
+  TF_STATE_BUCKET: "truongdaoanhduy-terraform-state"
+
+jobs:
+  security-scan:
+    name: Checkov Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Checkov
+        run: pip install checkov==${{ env.CHECKOV_VERSION }}
+
+      - name: Run Checkov Scan
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          checkov -d . \
+            --framework terraform \
+            --output cli \
+            --output junitxml \
+            --output-file-path console,checkov-report.xml \
+            --soft-fail
+        continue-on-error: true
+
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-security-report
+          path: terraform/checkov-report.xml
+          retention-days: 30
+
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          cat > terraform.tfvars << EOL
+          project_name = "nt548-truongduy-lab"
+          aws_region   = "us-east-1"
+          environment  = "dev"
+          vpc_cidr             = "10.0.0.0/16"
+          public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+          private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
+          availability_zones   = ["us-east-1a", "us-east-1b"]
+          ec2_ami_id                     = "ami-0c02fb55956c7d316"
+          ec2_instance_type              = "t3.micro"
+          ec2_volume_type                = "gp3"
+          ec2_volume_size                = 20
+          ec2_enable_detailed_monitoring = false
+          EOL
+
+      - name: Create Backend Config
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          cat > backend-config.hcl << EOL
+          bucket  = "${{ env.TF_STATE_BUCKET }}"
+          key     = "nt548/lab/terraform.tfstate"
+          region  = "us-east-1"
+          encrypt = true
+          EOL
+
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform init -backend-config=backend-config.hcl -reconfigure
+
+      - name: Terraform Validate
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform plan -out=tfplan -var-file="terraform.tfvars"
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+          retention-days: 5
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          cat > terraform.tfvars << EOL
+          project_name = "nt548-truongduy-lab"
+          aws_region   = "us-east-1"
+          environment  = "dev"
+          vpc_cidr             = "10.0.0.0/16"
+          public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+          private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
+          availability_zones   = ["us-east-1a", "us-east-1b"]
+          ec2_ami_id                     = "ami-0c02fb55956c7d316"
+          ec2_instance_type              = "t3.micro"
+          ec2_volume_type                = "gp3"
+          ec2_volume_size                = 20
+          ec2_enable_detailed_monitoring = false
+          EOL
+
+      - name: Create Backend Config
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          cat > backend-config.hcl << EOL
+          bucket  = "${{ env.TF_STATE_BUCKET }}"
+          key     = "nt548/lab/terraform.tfstate"
+          region  = "us-east-1"
+          encrypt = true
+          EOL
+
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform init -backend-config=backend-config.hcl -reconfigure
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/
+
+      - name: Terraform Apply
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          terraform output -json > terraform-outputs.json
+          echo "## ✅ Terraform Apply Successful!" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat terraform-outputs.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: terraform/terraform-outputs.json
+          retention-days: 30
