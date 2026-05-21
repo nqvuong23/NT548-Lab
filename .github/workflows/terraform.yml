@@ -10,7 +10,7 @@ env:
   CHECKOV_VERSION: "3.2.0"
   WORKING_DIR: "./terraform"
   AWS_REGION: "us-east-1"
-  TF_STATE_BUCKET: "truongdaoanhduy-terraform-state"
+  TF_STATE_BUCKET: "truongdaoanhduy-terraform-state" # Thay doi cai nay
 
 jobs:
   security-scan:
