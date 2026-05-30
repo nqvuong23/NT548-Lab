@@ -2,6 +2,128 @@
 
 **Nhóm:** 10
 
+# Hướng dẫn triển khai và kiểm thử hạ tầng AWS bằng Terraform
+
+## Các test case kiểm tra dịch vụ
+
+### VPC
+1. Kiểm tra VPC được tạo thành công với đúng CIDR block đã khai báo.
+2. Kiểm tra DNS hostnames và DNS support đều được bật.
+3. Kiểm tra số lượng Public Subnet khớp với danh sách CIDR đầu vào.
+4. Kiểm tra số lượng Private Subnet khớp với danh sách CIDR đầu vào.
+5. Kiểm tra Public Subnet có `map_public_ip_on_launch = true`.
+6. Kiểm tra Private Subnet có `map_public_ip_on_launch = false`.
+7. Kiểm tra Internet Gateway được tạo và gắn đúng vào VPC.
+8. Kiểm tra `length(availability_zones) >= length(public_subnet_cidrs)` để tránh index out of range khi tạo subnet.
+
+### Route Tables
+1. Kiểm tra Public Route Table có route `0.0.0.0/0` trỏ đến Internet Gateway.
+2. Kiểm tra Private Route Table có route `0.0.0.0/0` trỏ đến NAT Gateway.
+3. Kiểm tra tất cả Public Subnet được associate với Public Route Table.
+4. Kiểm tra tất cả Private Subnet được associate với Private Route Table.
+
+### NAT Gateway
+1. Kiểm tra Elastic IP được tạo thành công trong domain `vpc`.
+2. Kiểm tra NAT Gateway được đặt trong Public Subnet chứ không phải Private Subnet.
+3. Kiểm tra NAT Gateway được gắn đúng Elastic IP (`allocation_id` khớp với EIP).
+
+### EC2
+1. Kiểm tra Public Instance được tạo trong đúng Public Subnet.
+2. Kiểm tra subnet của Public Instance có `map_public_ip_on_launch = true`.
+3. Kiểm tra Private Instance được tạo trong đúng Private Subnet.
+4. Kiểm tra Private Instance không có public IP (không associate public IP).
+5. Kiểm tra cả hai instance có root volume được mã hóa (`encrypted = true`).
+6. Kiểm tra cả hai instance dùng IMDSv2 (`http_tokens = "required"`).
+
+### Security Groups
+1. Kiểm tra Public SG có ingress rule cho phép TCP port 22 từ `0.0.0.0/0`.
+2. Kiểm tra Public SG có egress rule cho phép toàn bộ traffic ra ngoài.
+3. Kiểm tra Private SG có ingress rule SSH (port 22) chỉ từ Public SG (dùng `referenced_security_group_id`, không phải CIDR).
+4. Kiểm tra Private SG có egress rule cho phép toàn bộ traffic ra ngoài.
+5. Kiểm tra Private SG không có bất kỳ ingress rule nào từ `0.0.0.0/0`.
+
+## Hướng dẫn chạy terraform_test.go
+
+### Bước 1: Cấu hình khóa xác thực AWS (AWS Credentials)
+Để Terraform có thể giao tiếp với AWS, cần cung cấp Access Key và Secret Key.
+
+1. Truy cập AWS Management Console.
+2. Điều hướng đến IAM -> IAM users -> Chọn User hiện có. Nếu chưa có thì tạo IAM users mới, chọn Attach policies directly -> AdministratorAccess ở bước Permissions.
+3. Chuyển sang tab Security credentials, tìm mục Access keys và nhấn Create access key (chọn loại Command Line Interface (CLI)).
+4. Mở Terminal/PowerShell trên máy tính và chạy lệnh:
+
+```cmd
+aws configure
+```
+
+Nhập lần lượt các thông tin:
+
+- AWS Access Key ID: (dán Access Key vừa tạo)
+- AWS Secret Access Key: (dán Secret Key vừa tạo)
+- Default region name: ap-southeast-1
+- Default output format: json
+
+### Bước 2: Build Docker Image cho môi trường test
+Môi trường test yêu cầu Golang và Terraform. Để tránh xung đột phiên bản, chúng ta sẽ đóng gói tất cả vào Docker.
+
+1. Mở Terminal (Command Prompt hoặc PowerShell).
+2. Di chuyển vào thư mục terraform (nơi chứa file Dockerfile và mã nguồn).
+3. Chạy lệnh sau để build image (chỉ cần chạy 1 lần duy nhất):
+
+```cmd
+docker build -t terratest-env .
+```
+
+### Bước 3: Chạy kịch bản tự động hóa (Automated Tests)
+Khi image đã sẵn sàng, chạy lệnh dưới đây để kích hoạt chu trình: Khởi tạo hạ tầng -> Kiểm tra 26 tiêu chí bảo mật & kiến trúc -> Dọn dẹp tài nguyên.
+
+Lưu ý: Lệnh dưới đây dành cho Command Prompt (CMD) trên Windows.
+
+```cmd
+docker run --rm -it ^
+   -v "%cd%":/app ^
+   -w /app/test ^
+   -v "%USERPROFILE%\.aws":/root/.aws:ro ^
+   terratest-env ^
+   sh -c "rm -rf /app/.terraform && go mod tidy && go test -v -timeout 30m"
+```
+Kết quả sẽ là:
+
+```plaintext
+TestAll 2026-05-30T05:21:16Z logger.go:66: Destroy complete! Resources: 22 destroyed.
+TestAll 2026-05-30T05:21:16Z logger.go:66:
+--- PASS: TestAll (290.29s)
+   --- PASS: TestAll/TC01_VPC_CIDR (0.57s)
+   --- PASS: TestAll/TC02_VPC_DNS (0.23s)
+   --- PASS: TestAll/TC03_PublicSubnet_Count (0.00s)
+   --- PASS: TestAll/TC04_PrivateSubnet_Count (0.00s)
+   --- PASS: TestAll/TC05_PublicSubnet_MapPublicIP (0.21s)
+   --- PASS: TestAll/TC06_PrivateSubnet_NoMapPublicIP (0.14s)
+   --- PASS: TestAll/TC07_InternetGateway_AttachedToVPC (0.07s)
+   --- PASS: TestAll/TC08_AZ_Count_GTE_Subnet_Count (0.00s)
+   --- PASS: TestAll/TC09_PublicRouteTable_HasIGWRoute (0.09s)
+   --- PASS: TestAll/TC10_PrivateRouteTable_HasNATRoute (0.10s)
+   --- PASS: TestAll/TC11_PublicSubnets_AssociatedWith_PublicRT (0.08s)
+   --- PASS: TestAll/TC12_PrivateSubnets_AssociatedWith_PrivateRT (0.13s)
+   --- PASS: TestAll/TC13_EIP_Domain_VPC (0.15s)
+   --- PASS: TestAll/TC14_NATGateway_InPublicSubnet (0.06s)
+   --- PASS: TestAll/TC15_NATGateway_HasCorrectEIP (0.06s)
+   --- PASS: TestAll/TC16_PublicInstance_InPublicSubnet (0.15s)
+   --- PASS: TestAll/TC17_PublicSubnet_MapPublicIP_ForPublicInstance (0.21s)
+   --- PASS: TestAll/TC18_PrivateInstance_InPrivateSubnet (0.15s)
+   --- PASS: TestAll/TC19_PrivateInstance_NoPublicIP (0.09s)
+   --- PASS: TestAll/TC20_BothInstances_RootVolume_Encrypted (0.41s)
+   --- PASS: TestAll/TC21_BothInstances_IMDSv2_Required (0.20s)
+   --- PASS: TestAll/TC22_PublicSG_SSH_From_Anywhere (0.06s)
+   --- PASS: TestAll/TC23_PublicSG_AllowAllEgress (0.06s)
+   --- PASS: TestAll/TC24_PrivateSG_SSH_OnlyFrom_PublicSG (0.07s)
+   --- PASS: TestAll/TC25_PrivateSG_AllowAllEgress (0.06s)
+   --- PASS: TestAll/TC26_PrivateSG_NoIngress_FromAnywhere (0.07s)
+PASS
+ok      github.com/nt548-lab/terraform-test     290.943s
+```
+
+
 # Hướng dẫn triển khai và kiểm thử hạ tầng AWS bằng CloudFormation
 
 Phần này hướng dẫn chi tiết cách sử dụng các template CloudFormation (`vpc.yaml`, `routing.yaml`, `ec2.yaml`) để tự động khởi tạo các dịch vụ VPC, Route Tables, NAT Gateway, EC2, Security Groups và cách chạy 4 test case để kiểm tra kết quả.

@@ -12,14 +12,14 @@ terraform {
     }
   }
 
-  backend "s3" {
-    bucket = "nqvuong23-terraform-project"
-    key    = "nt548/lab/terraform.tfstate"
-    region = "ap-southeast-1"
-
-    use_lockfile = true
-    encrypt      = true
-  }
+  # backend "s3" {
+  #   bucket = "nqvuong23-terraform-project"
+  #   key    = "nt548/lab/terraform.tfstate"
+  #   region = "ap-southeast-1"
+  #
+  #   use_lockfile = true
+  #   encrypt      = true
+  # }
 }
 
 # ------- Provider -------
