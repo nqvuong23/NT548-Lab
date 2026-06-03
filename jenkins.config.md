@@ -56,9 +56,12 @@ sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 ```
 
 ```
+sudo usermod -aG docker $USER
+sudo usermod -aG docker jenkins
+
 sudo systemctl enable docker
 sudo systemctl start docker
-sudo usermod -aG docker $USER
+sudo systemctl restart jenkins
 ```
 
 ---
