@@ -24,7 +24,7 @@ pipeline {
         // ─────────────────────────────────────────────
         stage('SonarQube Scan') {
             steps {
-                withSonarQubeEnv('sonarqube-token') {
+                withSonarQubeEnv('sonarqube-server') {
                     sh """
                         sonar-scanner \
                             -Dsonar.projectKey=microservices-demo \
