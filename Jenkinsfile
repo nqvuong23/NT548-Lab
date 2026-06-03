@@ -25,11 +25,12 @@ pipeline {
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
-                    sh """
-                        sonar-scanner \
+                    script {
+                        def scannerHome = tool 'sonar-scanner'
+                        sh "${scannerHome}/bin/sonar-scanner \
                             -Dsonar.projectKey=microservices-demo \
-                            -Dsonar.sources=${APP_SRC_DIR}
-                    """
+                            -Dsonar.sources=${APP_SRC_DIR}"
+            }
                 }
             }
             post {
