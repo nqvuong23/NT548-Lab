@@ -1,0 +1,325 @@
+# Converted from Kubernetes manifests (microservices-demo v0.10.5)
+# frontend-external is exposed via host port binding (equivalent to NodePort)
+
+name: microservices-demo
+
+services:
+
+  currencyservice:
+    image: currencyservice:latest
+    environment:
+      - PORT=7000
+      - DISABLE_PROFILER=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    networks:
+      - demo-net
+    restart: always
+
+  productcatalogservice:
+    image: productcatalogservice:latest
+    environment:
+      - PORT=3550
+      - DISABLE_PROFILER=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    networks:
+      - demo-net
+    restart: always
+
+  checkoutservice:
+    image: checkoutservice:latest
+    environment:
+      - PORT=5050
+      - PRODUCT_CATALOG_SERVICE_ADDR=productcatalogservice:3550
+      - SHIPPING_SERVICE_ADDR=shippingservice:50051
+      - PAYMENT_SERVICE_ADDR=paymentservice:50051
+      - EMAIL_SERVICE_ADDR=emailservice:5000
+      - CURRENCY_SERVICE_ADDR=currencyservice:7000
+      - CART_SERVICE_ADDR=cartservice:7070
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    depends_on:
+      - productcatalogservice
+      - shippingservice
+      - paymentservice
+      - emailservice
+      - currencyservice
+      - cartservice
+    networks:
+      - demo-net
+    restart: always
+
+  shippingservice:
+    image: shippingservice:latest
+    environment:
+      - PORT=50051
+      - DISABLE_PROFILER=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    networks:
+      - demo-net
+    restart: always
+
+  cartservice:
+    image: cartservice:latest
+    environment:
+      - REDIS_ADDR=redis-cart:6379
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.300"
+          memory: 128M
+        reservations:
+          cpus: "0.200"
+          memory: 64M
+    depends_on:
+      - redis-cart
+    networks:
+      - demo-net
+    restart: always
+
+  redis-cart:
+    image: redis:alpine
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.125"
+          memory: 256M
+        reservations:
+          cpus: "0.070"
+          memory: 200M
+    networks:
+      - demo-net
+    restart: always
+
+  emailservice:
+    image: emailservice:latest
+    environment:
+      - PORT=8080
+      - DISABLE_PROFILER=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    networks:
+      - demo-net
+    restart: always
+
+  paymentservice:
+    image: paymentservice:latest
+    environment:
+      - PORT=50051
+      - DISABLE_PROFILER=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    networks:
+      - demo-net
+    restart: always
+
+  recommendationservice:
+    image: recommendationservice:latest
+    environment:
+      - PORT=8080
+      - PRODUCT_CATALOG_SERVICE_ADDR=productcatalogservice:3550
+      - DISABLE_PROFILER=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 450M
+        reservations:
+          cpus: "0.100"
+          memory: 220M
+    depends_on:
+      - productcatalogservice
+    networks:
+      - demo-net
+    restart: always
+
+  adservice:
+    image: adservice:latest
+    environment:
+      - PORT=9555
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.300"
+          memory: 300M
+        reservations:
+          cpus: "0.200"
+          memory: 180M
+    networks:
+      - demo-net
+    restart: always
+
+  frontend:
+    image: frontend:latest
+    environment:
+      - PORT=8080
+      - PRODUCT_CATALOG_SERVICE_ADDR=productcatalogservice:3550
+      - CURRENCY_SERVICE_ADDR=currencyservice:7000
+      - CART_SERVICE_ADDR=cartservice:7070
+      - RECOMMENDATION_SERVICE_ADDR=recommendationservice:8080
+      - SHIPPING_SERVICE_ADDR=shippingservice:50051
+      - CHECKOUT_SERVICE_ADDR=checkoutservice:5050
+      - AD_SERVICE_ADDR=adservice:9555
+      - SHOPPING_ASSISTANT_SERVICE_ADDR=shoppingassistantservice:80
+      - ENABLE_PROFILER=0
+    # NodePort equivalent: bind host port 80 → container port 8080
+    ports:
+      - "80:8080"
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.200"
+          memory: 128M
+        reservations:
+          cpus: "0.100"
+          memory: 64M
+    depends_on:
+      - productcatalogservice
+      - currencyservice
+      - cartservice
+      - recommendationservice
+      - shippingservice
+      - checkoutservice
+      - adservice
+    networks:
+      - demo-net
+    restart: always
+
+  loadgenerator:
+    image: loadgenerator:latest
+    environment:
+      - FRONTEND_ADDR=frontend:80
+      - USERS=10
+      - RATE=1
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.500"
+          memory: 512M
+        reservations:
+          cpus: "0.300"
+          memory: 256M
+    depends_on:
+      - frontend
+    networks:
+      - demo-net
+    restart: always
+
+volumes:
+  redis-data:
+
+networks:
+  demo-net:
+    driver: bridge

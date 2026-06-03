@@ -1,0 +1,8 @@
+**/*.sh
+**/*.bat
+**/bin/
+**/obj/
+**/out/
+Dockerfile*  
+tests/
+cartservice.sln
