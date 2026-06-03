@@ -87,17 +87,18 @@ sudo apt-get install trivy
 ### Bước 2: Cấu hình Jenkins sử dụng SonarQube
 
 1. Tải Plugin của SonarQube: Vào Manage Jenkins (biểu tượng răng cưa) > Plugins > vào Tab "Available plugins" > Tìm và tải plugin "SonarQube Scanner"
-2. Vào Manage Jenkins (biểu tượng răng cưa) > Credentials > Add Credentials. Điền các thông tin sau:
+2. Vào Manage Jenkins (biểu tượng răng cưa) > Tools > Tìm mục "SonarQube Scanner installations" > Nhấn `Add SonarQube Scanner` > Nhập Name = "sonar-scanner" và tich vào ô `Install automatically` > Apply và Save
+3. Vào Manage Jenkins (biểu tượng răng cưa) > Credentials > Add Credentials. Điền các thông tin sau:
    - Kind: Chọn `Secret text`.
    - Secret: Dán token của SonarQube.
    - ID: Nhập `sonarqube-token`.
    - Bấm Create
-3. Vào Manage Jenkins > System 
-4. Tìm đến mục `SonarQube servers` > Nhấn Add SonarQube. Nhập các thông tin sau:
+4. Vào Manage Jenkins > System 
+5. Tìm đến mục `SonarQube servers` > Nhấn Add SonarQube. Nhập các thông tin sau:
    - Name: Nhập `sonarqube-server`.
    - Server URL: Nhập `http://<IP của EC2 hoặc localhost>:9000`
    - Server authentication token: chọn Credentials `sonarqube-token` vừa tạo
-5. Apply and Save
+6. Apply and Save
 
 ---
 

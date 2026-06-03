@@ -6,6 +6,7 @@ pipeline {
         COMPOSE_FILE   = "docker-compose-app.yaml"
         IMAGE_TAG      = "latest"
         TRIVY_OUTPUT_DIR = "trivy-reports"
+        SonarQube_Project = "NT548-Lab-Nhom10"
     }
 
     stages {
@@ -29,7 +30,7 @@ pipeline {
                         def scannerHome = tool 'sonar-scanner'
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
-                                -Dsonar.projectKey=microservices-demo \
+                                -Dsonar.projectKey=${SonarQube_Project} \
                                 -Dsonar.sources=${APP_SRC_DIR} \
                                 -Dsonar.java.binaries=. \
                                 -Dsonar.exclusions=**/*.java

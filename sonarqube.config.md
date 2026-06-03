@@ -35,7 +35,7 @@ docker compose up -d
 
 1. Chọn tab **Projects** trên thanh menu trên cùng.
 2. Bấm **Create a local project**.
-3. Tại ô *Project display name* và *Project key*, nhập chính xác tên: `NT548_Lab_Nhom10`.
+3. Tại ô *Project display name* và *Project key*, nhập chính xác tên: `NT548-Lab-Nhom10`.
 4. Chọn **Follows the instance's default**
 5. Bấm **Creat project**.
 
@@ -56,7 +56,7 @@ docker compose up -d
 
 ### Bước 4: Thiết lập Webhook (Quality Gate)
 
-1. Quay lại trang chủ SonarQube, bấm vào dự án `NT548_Lab_Nhom10` vừa tạo.
+1. Quay lại trang chủ SonarQube, bấm vào dự án `NT548-Lab-Nhom10` vừa tạo.
 2. Chọn menu **Project Settings** > **Webhooks**.
 3. Bấm **Create** và điền thông tin:
    - Name: `Jenkins Webhook`
