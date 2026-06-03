@@ -27,9 +27,13 @@ pipeline {
                 withSonarQubeEnv('sonarqube-server') {
                     script {
                         def scannerHome = tool 'sonar-scanner'
-                        sh "${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=microservices-demo \
-                            -Dsonar.sources=${APP_SRC_DIR}"
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=microservices-demo \
+                                -Dsonar.sources=${APP_SRC_DIR} \
+                                -Dsonar.java.binaries=. \
+                                -Dsonar.exclusions=**/*.java
+                        """
             }
                 }
             }
