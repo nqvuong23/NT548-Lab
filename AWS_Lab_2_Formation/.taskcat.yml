@@ -1,0 +1,11 @@
+project:
+  name: lab-cfn-testing
+  regions:
+    - ap-southeast-1
+  parameters: {}
+  package_lambda: false
+tests:
+  test-vpc:
+    template: taskcat-vpc.yaml
+    parameters: {}
+    

@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Template tao Route Tables va NAT Gateway"
+
+Resources:
+  # --- CAU HINH PUBLIC ---
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !ImportValue "Lab-VPC-ID"
+      Tags:
+        - Key: Name
+          Value: Lab-Public-RT
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !ImportValue "Lab-IGW-ID"
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !ImportValue "Lab-PublicSubnet-ID"
+      RouteTableId: !Ref PublicRouteTable
+
+  # --- CAU HINH NAT GATEWAY CHO PRIVATE ---
+  NatEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  LabNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !ImportValue "Lab-PublicSubnet-ID"
+      Tags:
+        - Key: Name
+          Value: Lab-NAT-Gateway
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !ImportValue "Lab-VPC-ID"
+      Tags:
+        - Key: Name
+          Value: Lab-Private-RT
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref LabNatGateway
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !ImportValue "Lab-PrivateSubnet-ID"
+      RouteTableId: !Ref PrivateRouteTable

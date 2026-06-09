@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Template tao VPC va Subnets"
+
+Resources:
+  LabVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Lab-VPC
+
+  LabIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Lab-IGW
+
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref LabVPC
+      InternetGatewayId: !Ref LabIGW
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true # Tu dong cap Public IP
+      Tags:
+        - Key: Name
+          Value: Lab-Public-Subnet
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref LabVPC
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value: Lab-Private-Subnet
+
+# Xuat ra cac ID de file khac su dung
+Outputs:
+  VPCId:
+    Value: !Ref LabVPC
+    Export:
+      Name: "Lab-VPC-ID"
+  PublicSubnetId:
+    Value: !Ref PublicSubnet
+    Export:
+      Name: "Lab-PublicSubnet-ID"
+  PrivateSubnetId:
+    Value: !Ref PrivateSubnet
+    Export:
+      Name: "Lab-PrivateSubnet-ID"
+  IGWId:
+    Value: !Ref LabIGW
+    Export:
+      Name: "Lab-IGW-ID"

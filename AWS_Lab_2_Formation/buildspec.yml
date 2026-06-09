@@ -1,0 +1,26 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "Đang cài đặt cfn-lint và taskcat..."
+      - python --version
+      - python -m venv .venv
+      - . .venv/bin/activate
+      - python -m pip install --upgrade pip wheel "setuptools<81"
+      - python -m pip install "taskcat==0.9.58" "cfn-lint==1.47.1"
+      - cfn-lint --version
+      - taskcat --version
+  pre_build:
+    commands:
+      - echo "1. Chạy cfn-lint để soi lỗi cú pháp toàn bộ file yaml..."
+      - . .venv/bin/activate
+      - cfn-lint vpc.yaml routing.yaml ec2.yaml taskcat-vpc.yaml
+  build:
+    commands:
+      - echo "2. Chạy Taskcat để test thử quá trình deploy..."
+      - sed -n '1,120p' .taskcat.yml
+      - . .venv/bin/activate
+      - taskcat test run

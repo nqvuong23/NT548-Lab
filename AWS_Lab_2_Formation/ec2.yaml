@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Template tao EC2 va Security Groups"
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: "Chon Key Pair (lab-key)"
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  YourIpAddress:
+    Type: String
+    Description: "Nhap Public IP cua ban kem /32 (vd: 14.226.x.x/32)"
+
+Resources:
+  # SG cho may Public: Chi cho phep IP cua ban ket noi qua port 22
+  PublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH from your IP
+      VpcId: !ImportValue "Lab-VPC-ID"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref YourIpAddress
+
+  # SG cho may Private: Chi cho phep may Public ket noi vao
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH only from Public EC2
+      VpcId: !ImportValue "Lab-VPC-ID"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref PublicSecurityGroup
+
+  PublicEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !ImportValue "Lab-PublicSubnet-ID"
+      SecurityGroupIds:
+        - !Ref PublicSecurityGroup
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}' # AMI Amazon Linux 2 mac dinh
+      Tags:
+        - Key: Name
+          Value: Lab-Public-EC2
+
+  PrivateEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !ImportValue "Lab-PrivateSubnet-ID"
+      SecurityGroupIds:
+        - !Ref PrivateSecurityGroup
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      Tags:
+        - Key: Name
+          Value: Lab-Private-EC2
+
+Outputs:
+  PublicInstanceIP:
+    Description: "Public IP cua Public EC2"
+    Value: !GetAtt PublicEC2.PublicIp
+  PrivateInstanceIP:
+    Description: "Private IP cua Private EC2"
+    Value: !GetAtt PrivateEC2.PrivateIp
